@@ -183,7 +183,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		(
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['default'],
 			'inputType'               => 'langplain',
-			'eval'                    => array('tl_class'=>'clr long'),
+			'eval'                    => array('tl_class'=>'clr long', 'doNotCopy'=>true, 'doNotShow'=>true),
 			'load_callback'           => array(
 				array('tl_translation', 'loadDefault')
 			)
@@ -330,7 +330,7 @@ class tl_translation extends Backend
 		return $this->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)));
 	}
 
-	protected function getLangValue(&$arrParent, $arrPath)
+	protected function getLangValue(&$arrParent, $arrPath, $blnRaw = false)
 	{
 		$strNext = array_shift($arrPath);
 
@@ -341,7 +341,12 @@ class tl_translation extends Backend
 
 		// walk deeper
 		else if (count($arrPath)) {
-			return $this->getLangValue($arrParent[$strNext], $arrPath);
+			return $this->getLangValue($arrParent[$strNext], $arrPath, $blnRaw);
+		}
+
+		// return raw value
+		else if ($blnRaw) {
+			return $arrParent[$strNext];
 		}
 
 		// value is array (like label)
@@ -363,7 +368,7 @@ class tl_translation extends Backend
 	public function loadContent($varValue, DataContainer $dc)
 	{
 		if (empty($varValue)) {
-			return $this->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)));
+			return $this->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)), true);
 		} else {
 			return $varValue;
 		}
