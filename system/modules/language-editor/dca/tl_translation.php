@@ -64,8 +64,8 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		'sorting' => array
 		(
 			'mode'                    => 1,
-			'fields'                  => array('langvar'),
-			'flag'                    => 1,
+			'fields'                  => array('langgroup'),
+			'flag'                    => 11,
 			'panelLayout'             => 'filter;search,limit',
 		),
 		'label' => array
