@@ -144,9 +144,9 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		(
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['langgroup'],
 			'filter'                  => true,
-			'inputType'               => 'hidden',
-			'eval'                    => array('alwaysSave'=>true),
-			'save_callback'           => array('tl_translation', 'saveLangGroup')
+			'inputType'               => 'hiddenField',
+			'eval'                    => array('alwaysSave'=>true, 'doNotShow'=>true),
+			'save_callback'           => array(array('tl_translation', 'saveLangGroup'))
 		),
 		'langvar' => array
 		(
