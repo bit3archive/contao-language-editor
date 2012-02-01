@@ -1,0 +1,20 @@
+.header_language_editor_search {
+	padding: 2px 0 3px 20px;
+	background: url(search.png) no-repeat left center;
+}
+.header_language_editor_build {
+	padding: 2px 0 3px 20px;
+	background: url(build.png) no-repeat left center;
+}
+
+fieldset.translation_update div {
+	line-height: 1.8em;
+}
+img.tl_translation_indicator {
+	background: url(indicator.gif) no-repeat center center;
+	vertical-align: middle;
+}
+
+form#tl_translation pre.plaintrans {
+	padding: 4px 0;
+}
