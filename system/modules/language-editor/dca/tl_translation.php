@@ -70,8 +70,8 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		),
 		'label' => array
 		(
-			'fields'                  => array('language', 'langvar'),
-			'format'                  => '[%s] <strong>%s</strong>',
+			'fields'                  => array('language'),
+			'format'                  => '[%s]',
 			'label_callback'          => array('tl_translation', 'getLabel')
 		),
 		'global_operations' => array
@@ -247,6 +247,15 @@ class tl_translation extends Backend
 			$label = 'BE ' . $label;
 		} else if ($arrRow['frontend']) {
 			$label = 'FE ' . $label;
+		}
+
+		list($strGroup, $strPath) = explode('::', $arrRow['langvar'], 2);
+		$strPath = (!preg_match('#^' . preg_quote($strGroup) . '|#', $strPath) ? $strGroup . '.' : '') . str_replace('|', '.', $strPath);
+
+		if (empty($GLOBALS['TL_TRANSLATION'][$strGroup][$strPath]['label'])) {
+			$label .= ' <strong>' . $strPath . '</strong>';
+		} else {
+			$label .= ' <strong>' . $GLOBALS['TL_TRANSLATION'][$strGroup][$strPath]['label'] . '</strong>';
 		}
 
 		$varContent = deserialize($arrRow['content']);
