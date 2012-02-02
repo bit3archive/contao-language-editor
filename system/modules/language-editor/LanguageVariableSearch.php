@@ -43,32 +43,95 @@
 class LanguageVariableSearch extends Backend
 {
 	/**
+	 * @var LanguageEditor
+	 */
+	protected $LanguageEditor;
+
+	/**
 	 * @var array
 	 */
 	protected $arrLanguageVariableKeys = null;
+
+	public function __construct()
+	{
+		parent::__construct();
+		$this->import('LanguageEditor');
+	}
 
 	/**
 	 * @return string
 	 */
 	public function searchLanguageVariable()
 	{
-		$session = $this->Session->get('tl_translation');
-		if (!$session || time()-$session<3600) {
-			header('Content-type: text/plain; charset=utf-8');
-			$arrTranslations = $this->getTranslations();
+		$objTemplate = new BackendTemplate('be_translation_search');
 
-			foreach ($arrTranslations as $strTranslation) {
-				// default and modules are la
-				if ($strTranslation != 'default' && $strTranslation != 'modules') {
-					$this->loadLanguageFile($strTranslation);
+		if ($this->Input->post('FORM_SUBMIT') == 'tl_translation_search') {
+			if ($this->Input->get('back')) {
+				$this->redirect('contao/main.php?do=language-editor&key=search');
+			}
+
+			$_SESSION['tl_translation_search_keyword']     = $this->Input->post('keyword');
+			$_SESSION['tl_translation_search_language']    = $this->Input->post('language');
+			$_SESSION['tl_translation_search_translation'] = $this->Input->post('translation');
+
+			$strKeyword      = html_entity_decode($this->Input->post('keyword'), ENT_QUOTES | ENT_HTML401, 'UTF-8');
+			$strLanguage     = $this->Input->post('language');
+			$arrTranslations = $this->Input->post('translation')
+				? array($this->Input->post('translation'))
+				: ($this->Input->post('translations')
+					? explode(',', $this->Input->post('translations'))
+					: array_keys($GLOBALS['TL_TRANSLATION']));
+			$arrResult       = array();
+			$intResults      = 0;
+			$blnFullMatch    = strpos($strKeyword, '*') !== false;
+			$strKeywordRgxp  = '#' . ($blnFullMatch ? '^' : '') . implode('.*', array_map('preg_quote', explode('*', $strKeyword))) . ($blnFullMatch ? '$' : '') . '#i';
+
+			$start = time();
+			$end = ini_get('max_execution_time');
+			if ($end > 0) {
+				$end = $start + 0.75 * $end;
+			} else {
+				$end = $start + 30;
+			}
+			while (time() < $end && count($arrTranslations) && !$intResults) {
+				$strTranslation  = array_shift($arrTranslations);
+
+				$arrResult[$strTranslation] = array();
+
+				$this->loadLanguageFile(isset(LanguageEditor::$arrDefaultGroups[$strTranslation]) ? LanguageEditor::$arrDefaultGroups[$strTranslation] : $strTranslation, $strLanguage, true);
+				if (isset($GLOBALS['TL_LANG'][$strTranslation]) && isset($GLOBALS['TL_TRANSLATION'][$strTranslation])) {
+					foreach ($GLOBALS['TL_TRANSLATION'][$strTranslation] as $strPath=>$arrConfig) {
+						$varValue = $this->LanguageEditor->getLangValue($GLOBALS['TL_LANG'], explode('|', $strPath), true);
+
+						if (!is_array($varValue)) {
+							$varValue = array($varValue);
+						}
+
+						foreach ($varValue as $v) {
+							if (preg_match($strKeywordRgxp, $v)
+								|| preg_match($strKeywordRgxp, strip_tags($v))) {
+								$arrResult[$strTranslation][$strPath] = count($varValue) > 1 ? $varValue : $varValue[0];
+								$intResults ++;
+								break;
+							}
+						}
+					}
 				}
 			}
 
-			foreach ($GLOBALS['TL_LANG'] as $k=>$v) {
-				var_dump($k);
-			}
-			exit;
+			$objTemplate->translations = $arrTranslations;
+			$objTemplate->result       = $arrResult;
 		}
+
+		else {
+			if (!isset($_SESSION['tl_translation_search_language'])) {
+				$_SESSION['tl_translation_search_language'] = $GLOBALS['TL_LANGUAGE'];
+			}
+
+			$objTemplate->translations = array_keys($GLOBALS['TL_TRANSLATION']);
+		}
+
+		return $objTemplate->parse();
 	}
 
 	/**
@@ -112,9 +175,7 @@ class LanguageVariableSearch extends Backend
 ");
 
 			// load the language
-			if (!isset($GLOBALS['TL_LANG'][$strTranslation])) {
-				$this->loadLanguageFile($strTranslation);
-			}
+			$this->loadLanguageFile(isset(LanguageEditor::$arrDefaultGroups[$strTranslation]) ? LanguageEditor::$arrDefaultGroups[$strTranslation] : $strTranslation);
 
 			if (is_array($GLOBALS['TL_LANG'][$strTranslation])) {
 				$this->arrLanguageVariableKeys = array();
@@ -211,21 +272,10 @@ class LanguageVariableSearch extends Backend
 		sort($arrTranslations);
 
 		// add defaults
-		$arrTranslations[] = 'CNT'; // countries
-		$arrTranslations[] = 'ERR'; // Error messages
-		$arrTranslations[] = 'PTY'; // Page types
-		$arrTranslations[] = 'FOP'; // File operation permissions
-		$arrTranslations[] = 'CHMOD'; // CHMOD levels
-		$arrTranslations[] = 'DAYS'; // Day names
-		$arrTranslations[] = 'MONTHS'; // Month names
-		$arrTranslations[] = 'MSC'; // Miscellaneous
-		$arrTranslations[] = 'UNITS'; // Units
-		$arrTranslations[] = 'XPL'; // Explanations
-		$arrTranslations[] = 'LNG'; // Languages
-		$arrTranslations[] = 'MOD'; // Back end modules
-		$arrTranslations[] = 'SEC'; // Security questions
-		$arrTranslations[] = 'CTE'; // Content elements
-		$arrTranslations[] = 'FMD'; // Front end modules
+		$arrTranslations = array_merge(
+			$arrTranslations,
+			array_keys(LanguageEditor::$arrDefaultGroups)
+		);
 
 		$arrTemp = array();
 		foreach ($arrTranslations as $strTranslation) {

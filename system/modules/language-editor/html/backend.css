@@ -15,6 +15,23 @@ img.tl_translation_indicator {
 	vertical-align: middle;
 }
 
-form#tl_translation pre.plaintrans {
-	padding: 4px 0;
+form#tl_translation pre.plaintrans,
+pre.translation_content {
+	margin: 4px 0;
+	padding: 4px;
+	border: 1px solid #bbb;
+	background: #F9F9F9;
+	color: #AE0000;
+	width: 690px;
+	overflow: auto;
+}
+.tl_listing_container form#tl_translation pre.plaintrans,
+.tl_listing_container pre.translation_content {
+	width: 580px;
+}
+
+form.searching .tl_submit_container {
+	background-image: url(searching.gif);
+	background-repeat: no-repeat;
+	background-position: 665px center;
 }

@@ -151,6 +151,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		'langvar' => array
 		(
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['langvar'],
+			'default'                 => $this->Input->get('langvar'),
 			'search'                  => true,
 			'inputType'               => 'select',
 			'options_callback'        => array('tl_translation', 'getLanguageVariablesOptions'),
@@ -159,7 +160,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		'language' => array
 		(
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['language'],
-			'default'                 => $GLOBALS['TL_LANGUAGE'],
+			'default'                 => $this->Input->get('language') ? $this->Input->get('language') : $GLOBALS['TL_LANGUAGE'],
 			'filter'                  => true,
 			'inputType'               => 'select',
 			'options'                 => $this->getLanguages(),
@@ -168,6 +169,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		'backend' => array
 		(
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['backend'],
+			'default'                 => true,
 			'filter'                  => true,
 			'inputType'               => 'checkbox',
 			'eval'                    => array('tl_class'=>'w50')
@@ -175,6 +177,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		'frontend' => array
 		(
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['frontend'],
+			'default'                 => true,
 			'filter'                  => true,
 			'inputType'               => 'checkbox',
 			'eval'                    => array('tl_class'=>'w50')
@@ -222,12 +225,18 @@ class tl_translation extends Backend
 	protected $Session;
 
 	/**
+	 * @var LanguageEditor
+	 */
+	protected $LanguageEditor;
+
+	/**
 	 * Import the back end user object
 	 */
 	public function __construct()
 	{
 		parent::__construct();
 		$this->import('BackendUser', 'User');
+		$this->import('LanguageEditor');
 
 		// get translation keys found by the TranslationSearch::buildTranslationKeys method
 		$objDir = new RegexIterator(new DirectoryIterator(TL_ROOT . '/system/languages/'), '#^langkeys\..*\.php$#');
@@ -264,9 +273,9 @@ class tl_translation extends Backend
 		}
 
 		if (is_array($varContent)) {
-			$label .= '<pre>' . '&ndash; ' . implode('<br>&ndash; ', array_map(array($this, 'plainEncode'), $varContent)) . '</pre>';
+			$label .= '<pre class="translation_content">' . '&ndash; ' . implode('<br>&ndash; ', array_map(array($this->LanguageEditor, 'plainEncode'), $varContent)) . '</pre>';
 		} else {
-			$label .= '<pre>' . $this->plainEncode($varContent) . '</pre>';
+			$label .= '<pre class="translation_content">' . $this->LanguageEditor->plainEncode($varContent) . '</pre>';
 		}
 
 		return $label;
@@ -281,7 +290,9 @@ class tl_translation extends Backend
 		if ($objTranslation->next()) {
 			list($strGroup, $strPath) = explode('::', $objTranslation->langvar, 2);
 
-			$this->loadLanguageFile($strGroup, $objTranslation->language, true);
+			$this->loadLanguageFile(isset(LanguageEditor::$arrDefaultGroups[$strGroup])
+				? LanguageEditor::$arrDefaultGroups[$strGroup]
+				: $strGroup, $objTranslation->language, true);
 
 			if (isset($GLOBALS['TL_TRANSLATION'][$strGroup][$strPath])) {
 				$arrConfig = $GLOBALS['TL_TRANSLATION'][$strGroup][$strPath];
@@ -327,48 +338,13 @@ class tl_translation extends Backend
 
 	public function loadDefault($varValue, DataContainer $dc)
 	{
-		return $this->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)));
-	}
-
-	protected function getLangValue(&$arrParent, $arrPath, $blnRaw = false)
-	{
-		$strNext = array_shift($arrPath);
-
-		// language path not found
-		if (!isset($arrParent[$strNext])) {
-			return 'not found!';
-		}
-
-		// walk deeper
-		else if (count($arrPath)) {
-			return $this->getLangValue($arrParent[$strNext], $arrPath, $blnRaw);
-		}
-
-		// return raw value
-		else if ($blnRaw) {
-			return $arrParent[$strNext];
-		}
-
-		// value is array (like label)
-		else if (is_array($arrParent[$strNext])) {
-			return '&ndash; ' . implode('<br>&ndash; ', array_map(array($this, 'plainEncode'), $arrParent[$strNext]));
-		}
-
-		// value is somethink else
-		else {
-			return $this->plainEncode($arrParent[$strNext]);
-		}
-	}
-
-	protected function plainEncode($varValue)
-	{
-		return htmlentities($varValue, ENT_QUOTES | ENT_HTML401, 'UTF-8');
+		return $this->LanguageEditor->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)));
 	}
 
 	public function loadContent($varValue, DataContainer $dc)
 	{
 		if (empty($varValue)) {
-			return $this->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)), true);
+			return $this->LanguageEditor->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)), true);
 		} else {
 			return $varValue;
 		}

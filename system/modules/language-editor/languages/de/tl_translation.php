@@ -36,7 +36,7 @@
 /**
  * Fields
  */
-$GLOBALS['TL_LANG']['tl_translation']['langgroup'] = array('Gruppe');
+$GLOBALS['TL_LANG']['tl_translation']['langgroup'] = array('Gruppe', 'Wählen Sie hier eine Gruppe, wenn Sie die Suche einschränken wollen.');
 $GLOBALS['TL_LANG']['tl_translation']['langvar']   = array('Sprachvariable', 'Wählen Sie hier die Sprachvariable die Sie editieren wollen.');
 $GLOBALS['TL_LANG']['tl_translation']['language']  = array('Sprache', 'Wählen Sie hier die Sprache für die Übersetzung');
 $GLOBALS['TL_LANG']['tl_translation']['backend']   = array('Im Backend anwenden', 'Wendet die Übersetzung im Backend an.');
@@ -62,6 +62,21 @@ $GLOBALS['TL_LANG']['tl_translation']['copy']   = array('Sprachvariable duplizie
 $GLOBALS['TL_LANG']['tl_translation']['delete'] = array('Sprachvariable löschen', 'Sprachvariable ID %s löschen');
 $GLOBALS['TL_LANG']['tl_translation']['edit']   = array('Sprachvariable bearbeiten', 'Sprachvariable ID %s bearbeiten');
 
+
+/**
+ * Errors
+ */
+$GLOBALS['TL_LANG']['tl_translation']['require_backend_frontend'] = 'Sie müssen mindestens eine Option auswählen.';
+
+
+/**
+ * Search
+ */
+$GLOBALS['TL_LANG']['tl_translation']['keyword']  = array('Zeichenkette', 'Geben Sie hier die zu suchende Zeichenkette ein. Diese darf auch HTML beinhalten.');
+$GLOBALS['TL_LANG']['tl_translation']['empty']    = 'In diese Gruppe wurde nichts gefunden';
+$GLOBALS['TL_LANG']['tl_translation']['back']     = 'Zurück';
+$GLOBALS['TL_LANG']['tl_translation']['continue'] = 'Weitersuchen';
+$GLOBALS['TL_LANG']['tl_translation']['dosearch'] = 'Suchen';
 
 /**
  * Generate language variable keys
