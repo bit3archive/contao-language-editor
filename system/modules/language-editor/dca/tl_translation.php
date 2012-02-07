@@ -50,11 +50,11 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		),
 		'onsubmit_callback' => array
 		(
-			array('tl_translation', 'updateTranslations')
+			array('tl_translation', 'markUpdate')
 		),
 		'ondelete_callback' => array
 		(
-			array('tl_translation', 'updateTranslations')
+			array('tl_translation', 'markUpdate')
 		)
 	),
 
@@ -64,7 +64,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 		'sorting' => array
 		(
 			'mode'                    => 1,
-			'fields'                  => array('langgroup'),
+			'fields'                  => array('langgroup', 'language', 'langvar'),
 			'flag'                    => 11,
 			'panelLayout'             => 'filter;search,limit',
 		),
@@ -155,7 +155,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 			'search'                  => true,
 			'inputType'               => 'select',
 			'options_callback'        => array('tl_translation', 'getLanguageVariablesOptions'),
-			'eval'                    => array('mandatory'=>true, 'submitOnChange'=>true, 'tl_class'=>'w50')
+			'eval'                    => array('mandatory'=>true, 'includeBlankOption'=>true, 'submitOnChange'=>true, 'tl_class'=>'w50')
 		),
 		'language' => array
 		(
@@ -196,7 +196,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 			'label'                   => &$GLOBALS['TL_LANG']['tl_translation']['content'],
 			'search'                  => true,
 			'inputType'               => 'text',
-			'eval'                    => array('tl_class'=>'clr long', 'includeBlankOption'=>true, 'allowHtml'=>true, 'preserveTags'=>true, 'mandatory'=>true),
+			'eval'                    => array('tl_class'=>'clr long', 'includeBlankOption'=>true, 'allowHtml'=>true, 'preserveTags'=>true),
 			'load_callback'           => array(
 				array('tl_translation', 'loadContent')
 			)
@@ -256,6 +256,8 @@ class tl_translation extends Backend
 			$label = 'BE ' . $label;
 		} else if ($arrRow['frontend']) {
 			$label = 'FE ' . $label;
+		} else {
+			$label = $this->generateImage('system/themes/' . $this->getTheme() . '/images/invisible.gif', '');
 		}
 
 		list($strGroup, $strPath) = explode('::', $arrRow['langvar'], 2);
@@ -283,6 +285,17 @@ class tl_translation extends Backend
 
 	public function loadTranslation(DataContainer $dc)
 	{
+		$arrSession = $this->Session->get('tl_translation');
+		if (count($arrSession['lazy_update'])) {
+			foreach ($arrSession['lazy_update'] as $strGroup) {
+				$this->updateTranslations($strGroup);
+			}
+			$this->updateLocallang();
+			$arrSession['lazy_update'] = array();
+			$this->Session->set('tl_translation', $arrSession);
+			$this->reload();
+		}
+
 		$objTranslation = $this->Database
 			->prepare("SELECT * FROM tl_translation WHERE id=?")
 			->execute($dc->id);
@@ -338,41 +351,70 @@ class tl_translation extends Backend
 
 	public function loadDefault($varValue, DataContainer $dc)
 	{
-		return $this->LanguageEditor->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)));
+		return strlen($dc->activeRecord->langvar)
+			? $this->LanguageEditor->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)))
+			: '';
 	}
 
 	public function loadContent($varValue, DataContainer $dc)
 	{
-		if (empty($varValue)) {
+		if (empty($varValue) && strlen($dc->activeRecord->langvar)) {
 			return $this->LanguageEditor->getLangValue($GLOBALS['TL_LANG'], explode('|', preg_replace('#^[^:]+::#', '', $dc->activeRecord->langvar)), true);
 		} else {
 			return $varValue;
 		}
 	}
 
-	public function updateTranslations(DataContainer $dc)
+	public function markUpdate(DataContainer $dc)
 	{
-		$strGroup = $dc->activeRecord->langgroup;
+		$arrSession = $this->Session->get('tl_translation');
+
+		if (!is_array($arrSession)) {
+			$arrSession = array('lazy_update' => array());
+		}
+
+		if (!in_array($dc->activeRecord->langgroup, $arrSession['lazy_update'])) {
+			$arrSession['lazy_update'][] = $dc->activeRecord->langgroup;
+		}
+
+		$this->Session->set('tl_translation', $arrSession);
+	}
+
+	public function updateTranslations($strGroup)
+	{
+		$this->log('Update translations for ' . $strGroup, 'tl_translation::updateTranslations', TL_INFO);
+
 		$strFile = 'system/languages/locallang.' . $strGroup . '.php';
+
+		$strSql = "SELECT * FROM tl_translation WHERE langgroup=? AND (backend=? OR frontend=?)";
+		$arrArgs = array($strGroup, 1, 1);
+
 		$objTranslation = $this->Database
-			->prepare("SELECT * FROM tl_translation WHERE langgroup=?")
-			->execute($strGroup);
+			->prepare($strSql)
+			->execute($arrArgs);
 		if ($objTranslation->numRows) {
-			$arrTranslation = array('both'=>array(), 'be'=>array(), 'fe'=>array());
+			$arrTranslation = array();
 			while ($objTranslation->next()) {
+				$arrPath = explode('|', preg_replace('#^[^:]+::#', '', $objTranslation->langvar));
+				$strVariable = "\$GLOBALS['TL_LANG']";
+				foreach ($arrPath as $strPath) {
+					$strVariable .= '[' . var_export($strPath, true) . ']';
+				}
+
+				$varValue = deserialize($objTranslation->content);
+				if (!$varValue) {
+					$varValue = $objTranslation->content;
+				}
+
+				if (!isset($arrTranslation[$objTranslation->language])) {
+					$arrTranslation[$objTranslation->language] = array('both'=>array(), 'be'=>array(), 'fe'=>array());
+				}
 				if ($objTranslation->backend && $objTranslation->frontend) {
-					$arrPath = explode('|', preg_replace('#^[^:]+::#', '', $objTranslation->langvar));
-					$strVariable = "\$GLOBALS['TL_LANG']";
-					foreach ($arrPath as $strPath) {
-						$strVariable .= '[' . var_export($strPath) . ']';
-					}
-
-					$varValue = deserialize($objTranslation->content);
-					if (!$varValue) {
-						$varValue = $objTranslation->content;
-					}
-
-					$arrTranslation['both'][$strVariable] = var_export($varValue);
+					$arrTranslation[$objTranslation->language]['both'][$strVariable] = var_export($varValue, true);
+				} else if ($objTranslation->backend) {
+					$arrTranslation[$objTranslation->language]['be'][$strVariable] = var_export($varValue, true);
+				} else if ($objTranslation->frontend) {
+					$arrTranslation[$objTranslation->language]['fe'][$strVariable] = var_export($varValue, true);
 				}
 			}
 
@@ -384,28 +426,93 @@ class tl_translation extends Backend
  */
 ");
 
-			foreach ($arrTranslation['both'] as $strVariable=>$strValue) {
-				$objFile->append(sprintf("%s = %s;\n", $strVariable, $strValue));
-			}
+			foreach ($arrTranslation as $strLanguage=>$arrLangTranslations) {
+				$objFile->append(sprintf("if (\$GLOBALS['TL_LANGUAGE'] == %s) {", var_export($strLanguage, true)));
 
-			if (count($arrTranslation['be'])) {
-				$objFile->append("if (TL_MODE=='BE') {\n");
-				foreach ($arrTranslation['be'] as $strVariable=>$strValue) {
-					$objFile->append(sprintf("\t%s = %s;\n", $strVariable, $strValue));
+				foreach ($arrLangTranslations['both'] as $strVariable=>$strValue) {
+					$objFile->append(sprintf("\t%s = %s;", $strVariable, $strValue));
 				}
-				$objFile->append("}\n");
-			}
 
-			if (count($arrTranslation['fe'])) {
-				$objFile->append("if (TL_MODE=='FE') {\n");
-				foreach ($arrTranslation['fe'] as $strVariable=>$strValue) {
-					$objFile->append(sprintf("\t%s = %s;\n", $strVariable, $strValue));
+				if (count($arrLangTranslations['be'])) {
+					$objFile->append("\tif (TL_MODE=='BE') {");
+					foreach ($arrLangTranslations['be'] as $strVariable=>$strValue) {
+						$objFile->append(sprintf("\t\t%s = %s;", $strVariable, $strValue));
+					}
+					$objFile->append("\t}");
 				}
-				$objFile->append("}\n");
+
+				if (count($arrLangTranslations['fe'])) {
+					$objFile->append("\tif (TL_MODE=='FE') {");
+					foreach ($arrLangTranslations['fe'] as $strVariable=>$strValue) {
+						$objFile->append(sprintf("\t\t%s = %s;", $strVariable, $strValue));
+					}
+					$objFile->append("\t}");
+				}
+
+				$objFile->append("}");
 			}
 		} else if (is_file(TL_ROOT . '/' . $strFile)) {
 			$objFile = new File($strFile);
 			$objFile->delete();
 		}
+	}
+
+	public function updateLocallang()
+	{
+		$this->log('Update locallang and add translations', 'tl_translation::updateTranslations', TL_INFO);
+
+		$objFile = new File('system/config/langconfig.php');
+
+		$strContent = '';
+		$arrLines = $objFile->getContentAsArray();
+
+		$blnAppend = true;
+		foreach ($arrLines as $strLine)
+		{
+			$strTrim = trim($strLine);
+
+			if ($strTrim == '?>') {
+				continue;
+			}
+
+			if ($strTrim == '### TRANSLATION EDITOR START ###') {
+				$blnAppend = false;
+				continue;
+			}
+
+			if ($strTrim == '### TRANSLATION EDITOR STOP ###') {
+				$blnAppend = true;
+				continue;
+			}
+
+			if ($blnAppend) {
+				$strContent .= $strLine . "\n";
+			}
+		}
+
+		$objTranslationGroup = $this->Database
+			->prepare("SELECT DISTINCT langgroup FROM tl_translation WHERE backend=? OR frontend=? ORDER BY langgroup")
+			->execute(1, 1);
+		if ($objTranslationGroup->numRows) {
+			$strContent .= "### TRANSLATION EDITOR START ###\n";
+			$strContent .= "/**
+ * DO NOT MODIFY THIS PART, IT IS GENERATED BY THE LANGUAGE EDITOR!
+ */
+if (\$this->Input->get('do') != 'language-editor') {";
+
+			while ($objTranslationGroup->next()) {
+				$strFile = '/system/languages/locallang.' . $objTranslationGroup->langgroup . '.php';
+				if (file_exists(TL_ROOT . $strFile)) {
+					$strContent .= sprintf("\tinclude(TL_ROOT . %s);\n", var_export($strFile, true));
+				}
+			}
+
+			$strContent .= "}
+### TRANSLATION EDITOR STOP ###\n";
+		}
+
+		$strContent .= '?>';
+
+		$objFile->write($strContent);
 	}
 }
