@@ -155,7 +155,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 			'search'                  => true,
 			'inputType'               => 'select',
 			'options_callback'        => array('tl_translation', 'getLanguageVariablesOptions'),
-			'eval'                    => array('mandatory'=>true, 'includeBlankOption'=>true, 'submitOnChange'=>true, 'tl_class'=>'w50')
+			'eval'                    => array('mandatory'=>true, 'chosen'=>true, 'includeBlankOption'=>true, 'submitOnChange'=>true, 'tl_class'=>'w50')
 		),
 		'language' => array
 		(
@@ -164,7 +164,7 @@ $GLOBALS['TL_DCA']['tl_translation'] = array
 			'filter'                  => true,
 			'inputType'               => 'select',
 			'options'                 => $this->getLanguages(),
-			'eval'                    => array('mandatory'=>true, 'submitOnChange'=>true, 'tl_class'=>'w50')
+			'eval'                    => array('mandatory'=>true, 'chosen'=>true, 'submitOnChange'=>true, 'tl_class'=>'w50')
 		),
 		'backend' => array
 		(
