@@ -73,8 +73,8 @@
 						<label for="ctrl_translation"><?php echo $GLOBALS['TL_LANG']['tl_translation']['langgroup'][0]; ?></label>
 					</h3>
 					<select id="ctrl_translation" name="translation">
-						<option value=""></option>
-						<?php var_dump($this->translations); foreach ($this->translations as $translation): ?>
+                        			<option value="">-</option>
+                        			<?php foreach ($this->translations as $translation): ?>
 						<option value="<?php echo $translation; ?>"<?php if ($_SESSION['tl_translation_search_translation'] == $translation): ?> selected="selected"<?php endif; ?>><?php echo $translation; ?></option>
 						<?php endforeach; ?>
 					</select>
